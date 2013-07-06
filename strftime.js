@@ -77,11 +77,12 @@ var mods = {
 	},
 	// day of the year. [001, 366]
 	j : function (date) {
-		var msBeginOfYear = (new Date(date.getYear(), 0, 1)).getDate();
+		var msBeginOfYear = (new Date(date.getFullYear(), 0, 1)).getTime();
 
 		//1(day) = 24(h/day) * 60(min/h) * 60(sec/min) * 1000(ms/sec)
 		//the +1 is to account for the current day
-		var days = Math.floor((date - msBeginOfYear) / 864e5) + 1;
+		var days = Math.floor((+date - msBeginOfYear) / 864e5) + 1;
+
 		return leftPad(days, '0', 3);
 	},
 	// month. [01, 12]
@@ -108,15 +109,23 @@ var mods = {
 	},
 	// hour in base 12. [01, 12]
 	I : function (date) {
-		return leftPad(date.getHours() % 12, '0');
+		var modulos = date.getHours() % 12;
+		//24 and 12 => 12. both %12 are 0
+		modulos = modulos || 12;
+
+		return leftPad(modulos, '0');
 	},
 	// hour in base 24. [ 0, 23]
 	k : function (date) {
-		return leftPad(date.getHours() + 1, ' ');
+		return leftPad(date.getHours(), ' ');
 	},
 	// hour in base 12. [ 1, 12]
 	l : function (date) {
-		return leftPad(date.getHours() % 12 + 1, ' ');
+		var modulos = date.getHours() % 12;
+		//24 and 12 => 12
+		modulos = modulos || 12;
+
+		return leftPad(modulos, ' ');
 	},
 	// minutes. [00, 59]
 	M : function (date) {
@@ -200,8 +209,6 @@ var mods = {
 	//TODO
 	G : function () { return ''; },
 	g : function () { return ''; },
-
-	//wat?
 	V : function (date) { return ''; },
 
 	//misc.
@@ -216,9 +223,9 @@ var mods = {
 	}
 };
 
-function dumpAll (date) {
-	return Object.keys(mods).reduce(function (ret, mod) {
-		ret[mod] = mods[mod](date);
+function dumpAll (date, locale) {
+	return Object.keys(mods).reduce(function dumpMod (ret, mod) {
+		ret[mod] = mods[mod](date, locale);
 		return ret;
 	}, {});
 }
@@ -226,17 +233,23 @@ function dumpAll (date) {
 var hooks = new RegExp('%'+Object.keys(mods).join('|%'), 'g');
 
 return function strftime (format, date, locale) {
-	date = date || new Date();
+	if (date) {
+		date = new Date(date);
+	}
+	else {
+		date = new Date();
+	}
+
 	locale = locale || defLocale;
 
 	if (format === undefined) {
-		return dumpAll(date);
+		return dumpAll(date, locale);
 	}
 
 	return format.replace(hooks, function replace (hook) {
 		var mod = hook.slice(1); //remove the % prefix
 
-		return mods[mod](date);
+		return mods[mod](date, locale);
 	});
 };
 
@@ -247,14 +260,14 @@ if (typeof module !== 'undefined' && typeof exports !== 'undefined') {
 	if (require.main === module) {
 		// *sigh*
 		if (!process.argv[2]) {
-			console.log('Usage: strftime format');
+			console.log('Usage: strftime format [date]');
 		}
 		else {
-			console.log(strftime(process.argv[2]));
+			console.log(strftime(process.argv[2], process.argv[3]));
 		}
 	}
 	//otherwise, expose it
 	else {
-		module = strftime;
+		exports.strftime = strftime;
 	}
 }
