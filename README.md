@@ -163,7 +163,7 @@ Note that this is not the full list, as implementation is not complete. In the f
 #### Time
 
 | Specifier | Meaning
-|:----------:--------
+|:----------:---------
 |Hour       | |
 | %H        | Hour in 24-hour clock [00, 23]
 | %k        | Hour in 24-hour clock [ 0, 23]
@@ -184,7 +184,7 @@ Note that this is not the full list, as implementation is not complete. In the f
 #### Misc.
 
 | Specifier | Meaning
-|:----------:--------
+|:----------:---------
 | %n        | Newline (\n)
 | %t        | Tab (\t)
 | %%        | Literal %
