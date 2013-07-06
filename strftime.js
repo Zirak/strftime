@@ -74,7 +74,7 @@ var mods = {
 	// alias of b
 	h : function (date) {
 		return mods.b(date);
-	}
+	},
 	// day of the year. [001, 366]
 	j : function (date) {
 		var msBeginOfYear = (new Date(date.getYear(), 0, 1)).getDate();
@@ -224,7 +224,6 @@ function dumpAll (date) {
 }
 
 var hooks = new RegExp('%'+Object.keys(mods).join('|%'), 'g');
-console.log(hooks);
 
 return function strftime (format, date, locale) {
 	date = date || new Date();
@@ -242,3 +241,20 @@ return function strftime (format, date, locale) {
 };
 
 })();
+
+if (typeof module !== 'undefined' && typeof exports !== 'undefined') {
+	// check if called directly
+	if (require.main === module) {
+		// *sigh*
+		if (!process.argv[2]) {
+			console.log('Usage: strftime format');
+		}
+		else {
+			console.log(strftime(process.argv[2]));
+		}
+	}
+	//otherwise, expose it
+	else {
+		module = strftime;
+	}
+}
