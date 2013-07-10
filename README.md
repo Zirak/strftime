@@ -28,6 +28,11 @@ strftime('%H:%M:%S (%z)');
 strftime('%F %r', new Date(2013, 2, 25, 14, 03, 25));
 //should definitely be this
 2013-03-25 02:03:25 PM
+
+//and to show off flags
+strftime('%-F %#r', new Date(2013, 2, 25, 14, 03, 25));
+2013-3-25 02:03:25 pm
+//notice 03->3 and PM->pm
 ```
 
 The `format` argument is a string which may contain what's called "convertion specifiers". `man strftime` has, in vivid detail, each one. I've alsp included a table at the end of this page. If you omit this argument (falsy value, excluding the empty string), the return value if an object with all the convertion specifiers (see the examples section).
@@ -122,7 +127,7 @@ strftime(null, date);
 
 ## Convertion Specifiers
 
-Note that this is not the full list, as implementation is not complete. In the future, I intend to add several glibc extensions like `%_` or `%N` (where N is a number).
+Note that this is not the full list, as implementation is not complete.
 
 #### General formats
 
@@ -163,7 +168,7 @@ Note that this is not the full list, as implementation is not complete. In the f
 #### Time
 
 | Specifier | Meaning
-|:----------:---------
+|:---------:|---------
 |Hour       | |
 | %H        | Hour in 24-hour clock [00, 23]
 | %k        | Hour in 24-hour clock [ 0, 23]
@@ -184,7 +189,18 @@ Note that this is not the full list, as implementation is not complete. In the f
 #### Misc.
 
 | Specifier | Meaning
-|:----------:---------
+|:---------:|---------
 | %n        | Newline (\n)
 | %t        | Tab (\t)
 | %%        | Literal %
+
+#### Flags
+Flags are special specifiers which are inserted before other specifiers, changing how they behave. For instance, `%-S` will make sure the output does not have a space padding. `%S` can give `07`, but `%-S` will give `7`.
+
+| Flag | Meaning
+|:----:|---------
+| `_`  | (underscore) Use spaces for padding
+| `-`  | (dash) Don't use padding
+| `0`  | Use 0s for padding
+| `^`  | (caret) Convert to uppercase
+| `#`  | Switch the result's case.

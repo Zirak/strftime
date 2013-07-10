@@ -30,10 +30,33 @@ var leftPad = function (start, filler, min) {
 
 	return str;
 };
+//use leftPad, but with respect to the flags (such as %_ which means to
+// always pad with spaces)
+//we only really care about two flag properties:
+// * padder - which string to use as a padder/filler
+// * length - how long the string should be
+//the default object should contain both, but defaults to
+// * padder = space
+// * length = 2
+var pad = function (str, flags, def) {
+	//no padding
+	if (flags.padder === '') {
+		return str;
+	}
+
+	def = def || {};
+
+	return leftPad(
+		str,
+		flags.padder || def.padder || ' ',
+		flags.length || def.length || 2);
+};
 
 //most js implementations simply disregard any locale and return the non
 // locale-sensitive string. this is a Bad Thing™. so whenever you see a
 // toLocaleSomething, question it. this is definitely a TODO.
+//the date object each converter receives is augmented with two properties:
+// the locale and flags.
 //see `man strftime` for the full explanations
 var converters = {
 	//formats
@@ -50,9 +73,9 @@ var converters = {
 		return [this.Y(date), this.m(date), this.d(date)].join('-');
 	},
 	// %I:%M:%S %p (11:01:01 PM)
-	r : function (date, locale) {
+	r : function (date) {
 		return [this.I(date), this.M(date), this.S(date)].join(':') + ' ' +
-			this.p(date, locale);
+			this.p(date);
 	},
 	// %H:%M (23:12)
 	R : function (date) {
@@ -93,8 +116,8 @@ var converters = {
 		return (/^\S+\s(\S+)/).exec(date)[1];
 	},
 	// full month name
-	B : function (date, locale) {
-		return locale.month[date.getMonth()];
+	B : function (date) {
+		return date.locale.month[date.getMonth()];
 	},
 	// alias of b
 	h : function (date) {
@@ -102,7 +125,7 @@ var converters = {
 	},
 	// month. [01, 12]
 	m : function (date) {
-		return leftPad(date.getMonth()+1, '0');
+		return pad(date.getMonth()+1, date.flags, {padder:'0'});
 	},
 
 	//week-related
@@ -111,8 +134,8 @@ var converters = {
 		return (/^\S+/).exec(date)[0];
 	},
 	// full week name
-	A : function (date, locale) {
-		return locale.weekDays[date.getDay()];
+	A : function (date) {
+		return date.locale.weekDays[date.getDay()];
 	},
 	// day of the week, [Monday=1, 7]
 	u : function (date) {
@@ -128,11 +151,12 @@ var converters = {
 
 		//1(we) = 7(day/we) * 24(h/day) * 60(min/h) * 60(h/sec) * 1000(ms/sec)
 		var weeks = Math.floor(msBeginOfYear / 6048e5);
-		return leftPad(weeks, '0');
+		return pad(weeks, date.flags, {padder:'0'});
 	},
 	// week number, [00, 53], starting with 1st Monday
 	W : function (date) {
 		var beginOfYear = new Date(date.getYear(), 0, 1);
+
 		while (beginOfYear.getDay() !== 1) {
 			beginOfYear.setDate(beginOfYear.getDate() + 1);
 		}
@@ -140,17 +164,17 @@ var converters = {
 		var msBeginOfYear = beginOfYear.getDate(),
 			weeks = Math.floor(msBeginOfYear / 6048e5);
 
-		return leftPad(weeks, '0');
+		return pad(weeks, date, {padder:'0'});
 	},
 
 	//day-related
 	// day of the month as 2 digit [01, 31]
 	d : function (date) {
-		return leftPad(date.getDate(), '0');
+		return pad(date.getDate(), date.flags, {padder:'0'});
 	},
 	// day of the month [ 1, 31]
 	e : function (date) {
-		return leftPad(date.getDate(), ' ');
+		return pad(date.getDate(), date.flags);
 	},
 
 	// day of the year. [001, 366]
@@ -161,7 +185,7 @@ var converters = {
 		//the +1 is to account for the current day
 		var days = Math.floor((+date - msBeginOfYear) / 864e5) + 1;
 
-		return leftPad(days, '0', 3);
+		return pad(days, date.flags, {padder:'0', length:3});
 	},
 
 	//time
@@ -169,11 +193,11 @@ var converters = {
 	//hour related
 	// hour in base 24. [00, 23]
 	H : function (date) {
-		return leftPad(date.getHours(), '0');
+		return pad(date.getHours(), date.flags, {padder:'0'});
 	},
 	// hour in base 24. [ 0, 23]
 	k : function (date) {
-		return leftPad(date.getHours(), ' ');
+		return pad(date.getHours(), date.flags);
 	},
 	// hour in base 12. [01, 12]
 	I : function (date) {
@@ -181,7 +205,7 @@ var converters = {
 		//24 and 12 => 12. both %12 are 0
 		modulos = modulos || 12;
 
-		return leftPad(modulos, '0');
+		return pad(modulos, date.flags, {padder:'0'});
 	},
 	// hour in base 12. [ 1, 12]
 	l : function (date) {
@@ -189,33 +213,36 @@ var converters = {
 		//24 and 12 => 12
 		modulos = modulos || 12;
 
-		return leftPad(modulos, ' ');
+		return pad(modulos, date.flags);
 	},
 
 	//am/pm
 	// AM or PM
-	p : function (date, locale) {
+	p : function (date) {
 		var hours = date.getHours();
-		return date.getHours() < 12 ? locale.ampm.AM : locale.ampm.PM;
+		return date.getHours() < 12 ?
+			date.locale.ampm.AM :
+			date.locale.ampm.PM;
 	},
 	// am or pm (lowercase). isn't it odd, lowercase p for uppercase?
-	P : function (date, locale) {
+	P : function (date) {
 		var hours = date.getHours();
 
+		var ampm = date.locale.ampm;
 		if (hours < 12) {
-			return locale.ampm.am ?
-				locale.ampm.am :
-				locale.ampm.AM.toLowerCase();
+			return ampm.am ?
+				ampm.am :
+				ampm.AM.toLowerCase();
 		}
 
-		return locale.ampm.pm ?
-			locale.ampm.pm :
-			locale.ampm.PM.toLowerCase();
+		return ampm.pm ?
+			ampm.pm :
+			ampm.PM.toLowerCase();
 	},
 
 	// minutes. [00, 59]
 	M : function (date) {
-		return leftPad(date.getMinutes(), '0');
+		return pad(date.getMinutes(), date.flags, {padder:'0'});
 	},
 
 	//seconds
@@ -225,7 +252,7 @@ var converters = {
 	},
 	// seconds. [00, 60] (60 for leap-seconds)
 	S : function (date) {
-		return leftPad(date.getSeconds(), '0');
+		return pad(date.getSeconds(), date.flags, {padder:'0'});
 	},
 
 	//timezone
@@ -259,15 +286,53 @@ var converters = {
 	}
 };
 
-function dumpAll (date, locale) {
+var modifiers = {
+	'_' : function (flags) {
+		flags.padder = ' ';
+	},
+	'-' : function (flags) {
+		flags.padder = '';
+	},
+	'0' : function (flags) {
+		flags.padder = '0';
+	},
+	'^' : function (flags) {
+		flags.uppercase = true;
+	},
+	'#' : function (flags) {
+		flags.invertCase = true;
+	}
+};
+
+function applyFlags (str, flags) {
+	if (flags.uppercase) {
+		return str.toUpperCase();
+	}
+	if (flags.invertCase) {
+		return [].map.call(str, function invertCase(ch) {
+			var lowered = ch.toLowerCase();
+
+			return ch === lowered ? ch.toUpperCase() : lowered;
+		}).join('');
+	}
+
+	return str;
+}
+
+function dumpAll (date) {
 	return Object.keys(converters).reduce(function dumpMod (ret, conv) {
-		ret[conv] = converters[conv](date, locale);
+		ret[conv] = converters[conv](date);
 
 		return ret;
 	}, {});
 }
 
-var hooks = new RegExp('%'+Object.keys(converters).join('|%'), 'g');
+var hooks = new RegExp(
+	'%(' +
+		Object.keys(modifiers).join('|') +
+	')?(' +
+		Object.keys(converters).join('|') +
+	')', 'g');
 
 return function strftime (format, date, locale) {
 	if (date) {
@@ -277,16 +342,21 @@ return function strftime (format, date, locale) {
 		date = new Date();
 	}
 
-	locale = locale || defLocale;
+	date.locale = locale || defLocale;
+	date.flags = {};
 
 	if (!format && format !== '') {
 		return dumpAll(date, locale);
 	}
 
-	return format.replace(hooks, function replace (hook) {
-		var conv = hook.slice(1); //remove the % prefix
+	return format.replace(hooks, function replace (hook, mod, conv) {
+		var flags = date.flags = {};
+		if (mod) {
+			modifiers[mod](flags);
+		}
 
-		return converters[conv](date, locale);
+		var res = converters[conv](date);
+		return applyFlags(res, flags);
 	});
 };
 
@@ -295,13 +365,7 @@ return function strftime (format, date, locale) {
 if (typeof module !== 'undefined' && typeof exports !== 'undefined') {
 	// check if called directly
 	if (require.main === module) {
-		// *sigh*
-		if (!process.argv[2]) {
-			console.log('Usage: strftime format [date]');
-		}
-		else {
-			console.log(strftime(process.argv[2], process.argv[3]));
-		}
+		console.log(strftime(process.argv[2], process.argv[3]));
 	}
 	//otherwise, expose it
 	else {
